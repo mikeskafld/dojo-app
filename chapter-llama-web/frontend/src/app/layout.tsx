@@ -1,9 +1,13 @@
 import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
 import './globals.css'
+import { Providers } from '@/components/Providers'
+
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Chapter-Llama Web',
-  description: 'AI-powered video chapter generation using Meta Llama 3.1 8B',
+  title: 'Dojo - AI-Powered Video Chapter Platform',
+  description: 'Transform long-form videos into navigable, mobile-native learning experiences with AI-generated chapters.',
 }
 
 export default function RootLayout({
@@ -13,7 +17,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="font-sans">{children}</body>
+      <body className={inter.className}>
+        <Providers>
+          {children}
+        </Providers>
+      </body>
     </html>
   )
 }
