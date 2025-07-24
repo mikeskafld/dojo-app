@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter-Llama Web - Working Version</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-4xl mx-auto space-y-8">
+            <!-- Header -->
+            <div class="text-center space-y-4">
+                <h1 class="text-4xl font-bold text-gray-900">Chapter-Llama Web</h1>
+                <p class="text-xl text-gray-600 max-w-2xl mx-auto">
+                    AI-powered video chapter generation using Meta Llama 3.1 8B
+                </p>
+                <div id="connection-status" class="inline-flex items-center px-4 py-2 bg-yellow-100 border border-yellow-200 rounded-lg">
+                    <div class="w-2 h-2 bg-yellow-500 rounded-full mr-2"></div>
+                    <span class="text-sm font-medium text-yellow-800">Connecting...</span>
+                </div>
+            </div>
+
+            <!-- Model Display -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">AI Model</h3>
+                <div id="model-info" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="h-4 w-4 rounded-full border-2 border-blue-500 bg-blue-500">
+                            <div class="h-full w-full rounded-full bg-white scale-50"></div>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">Meta Llama 3.1 8B</p>
+                            <p class="text-xs text-gray-600">Vercel AI Gateway</p>
+                        </div>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                            Active
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Video URL Input -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">YouTube URL Processing</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">YouTube URL</label>
+                        <input type="url" id="video-url" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                               placeholder="https://www.youtube.com/watch?v=..."
+                               value="https://www.youtube.com/watch?v=dQw4w9WgXcQ">
+                    </div>
+                    <button onclick="processURL()" id="url-btn"
+                            class="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 font-medium">
+                        🎬 Generate Chapters from URL
+                    </button>
+                </div>
+            </div>
+
+            <!-- File Upload -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">File Upload</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Select Video File</label>
+                        <input type="file" id="video-file" accept="video/*" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <button onclick="processFile()" id="file-btn"
+                            class="w-full bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-700 font-medium">
+                        📁 Generate Chapters from File
+                    </button>
+                </div>
+            </div>
+
+            <!-- Status Display -->
+            <div id="status-display" class="hidden">
+                <!-- Will be populated by JavaScript -->
+            </div>
+
+            <!-- Results Display -->
+            <div id="results-display" class="hidden">
+                <!-- Will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5328'\;
+        
+        // Test connection and update status
+        async function testConnection() {
+            try {
+                console.log('Testing connection to:', API_BASE);
+                const response = await fetch(`${API_BASE}/api/health`, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Connection successful:', data);
+                    
+                    document.getElementById('connection-status').innerHTML = `
+                        <div class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                        <span class="text-sm font-medium text-green-800">Connected - ${data.service}</span>
+                    `;
+                    document.getElementById('connection-status').className = 
+                        'inline-flex items-center px-4 py-2 bg-green-100 border border-green-200 rounded-lg';
+                    return true;
+                }
+            } catch (error) {
+                console.error('Connection failed:', error);
+                document.getElementById('connection-status').innerHTML = `
+                    <div class="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
+                    <span class="text-sm font-medium text-red-800">Connection Failed</span>
+                `;
+                document.getElementById('connection-status').className = 
+                    'inline-flex items-center px-4 py-2 bg-red-100 border border-red-200 rounded-lg';
+                return false;
+            }
+        }
+
+        // Process YouTube URL
+        async function processURL() {
+            const urlInput = document.getElementById('video-url');
+            const url = urlInput.value.trim();
+            
+            if (!url) {
+                showStatus('error', 'Please enter a YouTube URL');
+                return;
+            }
+
+            console.log('Processing URL:', url);
+            
+            const button = document.getElementById('url-btn');
+            button.disabled = true;
+            button.innerHTML = '⏳ Processing...';
+            
+            showStatus('processing', 'Downloading and processing video...');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/process-video`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    mode: 'cors',
+                    body: JSON.stringify({
+                        video_url: url,
+                        model_name: 'meta-llama-3.1-8b'
+                    })
+                });
+
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+
+                const result = await response.json();
+                console.log('Result:', result);
+                
+                if (result.success) {
+                    showResults(result);
+                } else {
+                    showStatus('error', result.message || 'Processing failed');
+                }
+
+            } catch (error) {
+                console.error('Error processing URL:', error);
+                showStatus('error', `Failed to process video: ${error.message}`);
+            } finally {
+                button.disabled = false;
+                button.innerHTML = '🎬 Generate Chapters from URL';
+            }
+        }
+
+        // Process uploaded file
+        async function processFile() {
+            const fileInput = document.getElementById('video-file');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showStatus('error', 'Please select a video file');
+                return;
+            }
+
+            console.log('Processing file:', file.name);
+            
+            const button = document.getElementById('file-btn');
+            button.disabled = true;
+            button.innerHTML = '⏳ Processing...';
+            
+            showStatus('processing', `Processing ${file.name}...`);
+
+            try {
+                const formData = new FormData();
+                formData.append('video', file);
+                formData.append('model_name', 'meta-llama-3.1-8b');
+
+                const response = await fetch(`${API_BASE}/api/process-file`, {
+                    method: 'POST',
+                    mode: 'cors',
+                    body: formData
+                });
+
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+
+                const result = await response.json();
+                console.log('Result:', result);
+                
+                if (result.success) {
+                    showResults(result);
+                } else {
+                    showStatus('error', result.message || 'Processing failed');
+                }
+
+            } catch (error) {
+                console.error('Error processing file:', error);
+                showStatus('error', `Failed to process file: ${error.message}`);
+            } finally {
+                button.disabled = false;
+                button.innerHTML = '📁 Generate Chapters from File';
+            }
+        }
+
+        // Show status messages
+        function showStatus(type, message) {
+            const statusDisplay = document.getElementById('status-display');
+            const colors = {
+                processing: 'bg-blue-50 border-blue-200 text-blue-800',
+                error: 'bg-red-50 border-red-200 text-red-800',
+                success: 'bg-green-50 border-green-200 text-green-800'
+            };
+
+            statusDisplay.innerHTML = `
+                <div class="border rounded-lg p-4 ${colors[type]}">
+                    <div class="flex items-center">
+                        ${type === 'processing' ? '<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-3"></div>' : ''}
+                        <span>${message}</span>
+                    </div>
+                </div>
+            `;
+            statusDisplay.classList.remove('hidden');
+        }
+
+        // Show results
+        function showResults(data) {
+            const resultsDisplay = document.getElementById('results-display');
+            
+            resultsDisplay.innerHTML = `
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">✨ Generated Chapters</h3>
+                    
+                    <div class="bg-gray-50 rounded-lg p-4 mb-6">
+                        <h4 class="font-medium text-gray-900 mb-2">Video Information</h4>
+                        <div class="text-sm text-gray-600 space-y-1">
+                            <p>📱 Duration: ${data.video_duration || 'Unknown'}</p>
+                            <p>🤖 Model: ${data.model_used}</p>
+                            <p>☁️ Provider: ${data.provider || 'Local'}</p>
+                            ${data.filename ? `<p>📁 File: ${data.filename}</p>` : ''}
+                            <p class="text-green-600 font-medium">✅ ${data.message}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        ${data.chapters.map((chapter, index) => `
+                            <div class="flex items-center space-x-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+                                <div class="text-sm font-mono text-blue-700 bg-blue-200 px-3 py-2 rounded-full min-w-max">
+                                    ${chapter.timestamp}
+                                </div>
+                                <div class="flex-1 text-gray-900 font-medium">
+                                    ${index + 1}. ${chapter.title}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div class="mt-6 text-center">
+                        <button onclick="copyResults()" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700">
+                            📋 Copy Chapter List
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            resultsDisplay.classList.remove('hidden');
+            document.getElementById('status-display').classList.add('hidden');
+        }
+
+        // Copy results to clipboard
+        function copyResults() {
+            const chapters = document.querySelectorAll('#results-display .text-gray-900');
+            const text = Array.from(chapters).map(ch => ch.textContent).join('\n');
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Chapter list copied to clipboard!');
+            });
+        }
+
+        // Initialize
+        console.log('Initializing Chapter-Llama Web...');
+        testConnection();
+        
+        // Allow Enter key to submit URL
+        document.getElementById('video-url').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                processURL();
+            }
+        });
+    </script>
+</body>
+</html>

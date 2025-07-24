@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter-Llama - Simple Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-blue-50 min-h-screen p-8">
+    <div class="max-w-2xl mx-auto space-y-6">
+        <h1 class="text-3xl font-bold text-center">Chapter-Llama Simple Test</h1>
+        
+        <!-- Test Buttons -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h2 class="text-xl mb-4">Step 1: Test JavaScript</h2>
+            <button id="test-btn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                Click Me First
+            </button>
+            <p id="test-result" class="mt-2 text-gray-600"></p>
+        </div>
+
+        <!-- URL Processing -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h2 class="text-xl mb-4">Step 2: Test Video Processing</h2>
+            <input type="text" id="url-input" class="w-full border p-2 rounded mb-4" 
+                   value="https://www.youtube.com/watch?v=dQw4w9WgXcQ" 
+                   placeholder="YouTube URL">
+            <button id="process-btn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                Generate Chapters
+            </button>
+            <div id="status" class="mt-4 p-3 rounded hidden"></div>
+        </div>
+
+        <!-- Results -->
+        <div id="results" class="bg-white p-6 rounded-lg shadow hidden">
+            <h2 class="text-xl mb-4">Results</h2>
+            <div id="results-content"></div>
+        </div>
+    </div>
+
+    <script>
+        console.log('Script loading...');
+
+        // Test function
+        function testClick() {
+            console.log('Test button clicked!');
+            document.getElementById('test-result').textContent = '✅ JavaScript is working!';
+            document.getElementById('test-result').className = 'mt-2 text-green-600 font-medium';
+        }
+
+        // Process video function
+        async function processVideo() {
+            console.log('Process button clicked!');
+            
+            const url = document.getElementById('url-input').value;
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+            
+            // Show processing status
+            statusDiv.className = 'mt-4 p-3 rounded bg-blue-100 text-blue-800';
+            statusDiv.textContent = '⏳ Processing video...';
+            statusDiv.classList.remove('hidden');
+            
+            try {
+                console.log('Making API request to: http://localhost:5328/api/process-video');
+                
+                const response = await fetch('http://localhost:5328/api/process-video', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        video_url: url,
+                        model_name: 'meta-llama-3.1-8b'
+                    })
+                });
+
+                console.log('Response received:', response.status);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.log('Data received:', data);
+
+                // Show success
+                statusDiv.className = 'mt-4 p-3 rounded bg-green-100 text-green-800';
+                statusDiv.textContent = '✅ Processing completed!';
+
+                // Show results
+                const resultsContent = document.getElementById('results-content');
+                resultsContent.innerHTML = `
+                    <div class="space-y-2">
+                        <p><strong>Duration:</strong> ${data.video_duration}</p>
+                        <p><strong>Model:</strong> ${data.model_used}</p>
+                        <p><strong>Provider:</strong> ${data.provider}</p>
+                        <div class="mt-4">
+                            <h3 class="font-medium mb-2">Chapters:</h3>
+                            ${data.chapters.map(ch => `
+                                <div class="flex gap-4 p-2 bg-gray-50 rounded">
+                                    <span class="font-mono text-blue-600">${ch.timestamp}</span>
+                                    <span>${ch.title}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                resultsDiv.classList.remove('hidden');
+
+            } catch (error) {
+                console.error('Error:', error);
+                statusDiv.className = 'mt-4 p-3 rounded bg-red-100 text-red-800';
+                statusDiv.textContent = `❌ Error: ${error.message}`;
+            }
+        }
+
+        // Set up event listeners when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, setting up event listeners...');
+            
+            const testBtn = document.getElementById('test-btn');
+            const processBtn = document.getElementById('process-btn');
+            
+            if (testBtn) {
+                testBtn.addEventListener('click', testClick);
+                console.log('Test button listener added');
+            } else {
+                console.error('Test button not found!');
+            }
+            
+            if (processBtn) {
+                processBtn.addEventListener('click', processVideo);
+                console.log('Process button listener added');
+            } else {
+                console.error('Process button not found!');
+            }
+            
+            console.log('All event listeners set up!');
+        });
+
+        console.log('Script loaded successfully');
+    </script>
+</body>
+</html>
