@@ -57,8 +57,10 @@ export const authOptions: NextAuthOptions = {
         .single()
 
       if (!existingUser) {
-        // Create new user record
-        const username = profile?.login || // GitHub username
+        // Create new user record with safe profile access
+        const profileData = profile as any // Safe casting for provider-specific fields
+        const username = profileData?.login || // GitHub username
+                        profileData?.preferred_username || // Generic username field
                         user.email?.split('@')[0] || // Email prefix
                         `user_${user.id.slice(0, 8)}` // Fallback
 
